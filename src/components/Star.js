@@ -1,65 +1,101 @@
 import React, {useState, useEffect} from 'react';
 import './Star.css';
+import axios from 'axios';
 
 function Star() {
 
   const [parametro, setParametro] = useState ("")
   const [personagem, setPersonagem] = useState ([])
   const [fil, setFil] = useState ([])
-  const [total, setTotal] = useState ()
+  const [total, setTotal] = useState (0)
+  const [totalTela, setTotalTela] = useState ()
   
-  
+  var soma  = 0;
+  var valor = 0;
+
+  // function getPeople(page) {
+  //   fetch(`https://swapi.dev/api/people/?page=`+page).then((res) => res.json()).then((data) => {
+  //     const item = data.results;
+      
+  //     let auxPersonagem = personagem;
+  //     auxPersonagem.push(...item);
+  //     setPersonagem(auxPersonagem); 
+      
+  //     // setPersonagem([...personagem, ...item])
+
+  //     if (data.next && data.next !== '') {
+  //       getPeople(page + 1)
+  //     } else {
+  //       console.log(personagem)
+  //     }
+  //   })
+  // }
+
+  function getPeople(page) {
+    axios(`https://swapi.dev/api/people/?page=`+page).then(res => {
+      const item = res.data.results;
+      
+      let auxPersonagem = personagem;
+      auxPersonagem.push(...item);
+      setPersonagem(auxPersonagem); 
+      
+      // setPersonagem([...personagem, ...item])
+
+      if (res.data.next && res.data.next !== '') {
+        getPeople(page + 1)
+      } else {
+        // console.log(personagem)
+      }
+    })
+  }
+
+
+  async function valorNaves(page){
+     await axios('https://swapi.dev/api/starships/?page='+ page).then(res =>{
+      
+      res.data.results.forEach(element => {
+        valor = parseInt(element.cost_in_credits);
+        if(valor){
+          soma += valor
+          setTotal(soma)
+        }
+        setTotalTela(soma);
+      });
+      
+      if(res.data.next){
+        valorNaves(page + 1)
+      }
+    })
+  }
+
   useEffect(()=>{
 
     // Função que alimenta o Banco de personagens
-    async function banco(){
-      let res = await fetch(`https://swapi.dev/api/people/?page=1`);
-      let data = await res.json();
-      const item = data.results;
-      setPersonagem(item);  
-    }
-
-    // async function banco(){
-    //   for (let i = 1; i < 83; i++) {
-    //     let res = await fetch(`https://swapi.dev/api/people/${i}/`);
-    //     let data = await res.json();
-    //     setPersonagem(data)
-    //     console.log(data)
-    //   }
-    // }
-
+    getPeople(1)
+    
     //Função que calcula a soma dos valores das starships
-    async function valorNaves(){
-      var soma  = 0;
-      var valor = 0;
-      for (let i = 1; i < 64; i++) {
-        let res = await fetch(`https://swapi.dev/api/starships/${i}/`).catch();
-        let data = await res.json();
-        
-         valor = parseInt(data.cost_in_credits);
-        if(Number.isInteger(valor)){
-          soma+=valor;
-        }
-      }
-      
-      setTotal(soma.toFixed(2)
-      .replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.'));
-      
-    }
-    banco();
-    valorNaves();
+    valorNaves(1);
   },[])
 
   //Função que limpa a mensagem de erro de campo vazio
   const limparErro = () => {
     document.getElementById("campoVazio").style.display = "none";
-    document.getElementById("errou").style.display = "none"
+    document.getElementById("errou").style.display = "none";
   }
   
   //Função de pesquisar com parâmetros e condições
   const buscar = async  () => {
-    const person = personagem.find((e)=>e.name===parametro)
-    
+    const person = await personagem.find((e)=>e.name===parametro)
+
+    await person.films.forEach(element => {
+      let auxfilme = fil
+      axios(element).then(res => {
+        auxfilme.push(res.data.title)
+        setFil(auxfilme)
+      })
+    })
+    console.log(fil)
+
     //Planeta Natal
     async function casa(){
       let res = await fetch(person.homeworld);
@@ -68,13 +104,17 @@ function Star() {
     }
     
     //Lista de filmes
-    async function filmes(){
-      await person.films.forEach(async (element)=> {
-        let res = await fetch(element);
-        let data = await res.json();
-        setFil(data.title);  
-      });
-    }
+    // async function filmes(){
+    //   await person.films.forEach(async (element)=> {
+    //     let res = await fetch(element);
+    //     let data = await res.json();
+    //     let auxfilme = fil;
+    //     auxfilme.push(data.title)
+    //     // console.log(data.title)
+    //     setFil(auxfilme);  
+    //   });
+    // } 
+
     
     if (parametro !== ""){
       if (person === undefined){
@@ -82,8 +122,7 @@ function Star() {
       }
       if (person !== undefined){
         console.log(person);
-        const planetaNatal = await casa();
-        await filmes(); 
+        const planetaNatal = await casa(); 
 
         //Inserção das informações do personagem pesquisado
         document.querySelector(".resultado").innerHTML=
@@ -154,7 +193,7 @@ function Star() {
         </div>
         <div className="descricao">
           Se alguém quisesse comprar TODAS as naves do universo Star Wars, a quantia em créditos que esse ser gastaria, seria de:
-          <div className= "valorNaves"> {total} créditos</div>
+          <div className= "valorNaves"> {totalTela} créditos</div>
         </div>
       </div>
     </div>
